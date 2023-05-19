@@ -1,0 +1,125 @@
+import io.quarkus.runtime.annotations.RegisterForReflection;
+import javax.enterprise.context.ApplicationScoped;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+@ApplicationScoped
+@RegisterForReflection
+public class JsonComparisonService {
+
+    private Map<String, JsonScenario> scenarios;
+
+    public JsonComparisonService() {
+        this.scenarios = new HashMap<>();
+    }
+
+    public void addScenario(String scenarioName, JsonScenario scenario) {
+        scenarios.put(scenarioName, scenario);
+    }
+
+    public void compareJsonAttributes(String path, JsonObject json1, JsonObject json2, JsonDifference jsonDifference) {
+        for (Map.Entry<String, JsonElement> entry : json1.entrySet()) {
+            String attribute = entry.getKey();
+            JsonElement value1 = entry.getValue();
+            JsonElement value2 = json2.get(attribute);
+            String currentPath = path.isEmpty() ? attribute : path + "." + attribute;
+
+            if (!value1.equals(value2)) {
+                AttributeDifference attributeDifference = new AttributeDifference(value1, value2);
+                if (shouldIncludeAttribute(currentPath, attributeDifference)) {
+                    jsonDifference.getChangedAttributes().put(currentPath, attributeDifference);
+                }
+            }
+
+            if (value1.isJsonObject() && value2.isJsonObject()) {
+                compareJsonAttributes(currentPath, value1.getAsJsonObject(), value2.getAsJsonObject(), jsonDifference);
+            } else if (value1.isJsonArray() && value2.isJsonArray()) {
+                compareJsonArrayAttributes(currentPath, value1.getAsJsonArray(), value2.getAsJsonArray(), jsonDifference);
+            }
+        }
+    }
+
+    public void compareJsonArrayAttributes(String path, JsonArray jsonArray1, JsonArray jsonArray2, JsonDifference jsonDifference) {
+        int size1 = jsonArray1.size();
+        int size2 = jsonArray2.size();
+        int minSize = Math.min(size1, size2);
+
+        for (int i = 0; i < minSize; i++) {
+            JsonElement element1 = jsonArray1.get(i);
+            JsonElement element2 = jsonArray2.get(i);
+            String currentPath = path + "[" + i + "]";
+
+            if (!element1.equals(element2)) {
+                AttributeDifference attributeDifference = new AttributeDifference(element1, element2);
+                if (shouldIncludeAttribute(currentPath, attributeDifference)) {
+                    jsonDifference.getChangedAttributes().put(currentPath, attributeDifference);
+                }
+            }
+
+            if (element1.isJsonObject() && element2.isJsonObject()) {
+                compareJsonAttributes(currentPath, element1.getAsJsonObject(), element2.getAsJsonObject(), jsonDifference);
+            } else if (element1.isJsonArray() && element2.isJsonArray()) {
+                compareJsonArrayAttributes(currentPath, element1.getAsJsonArray(), element2.getAsJsonArray(), jsonDifference);
+            }
+        }
+
+        if (size1 > size2) {
+            for (int i = size2; i < size1; i++) {
+                String currentPath = path + "[" + i + "]";
+                AttributeDifference attributeDifference = new AttributeDifference(jsonArray1.get(i), null);
+                if (shouldIncludeAttribute(currentPath, attributeDifference)) {
+                    jsonDifference.getChangedAttributes().put(currentPath, attributeDifference);
+                }
+            }
+        } else if (size2 > size1) {
+            for (int i = size1; i < size2; i++) {
+                String currentPath = path + "[" + i + "]";
+                AttributeDifference attributeDifference = new AttributeDifference(null, jsonArray2.get(i));
+                if (shouldIncludeAttribute(currentPath, attributeDifference)) {
+                    jsonDifference.getChangedAttributes().put(currentPath, attributeDifference);
+                }
+            }
+        }
+    }
+
+    private boolean shouldIncludeAttribute(String path, AttributeDifference attributeDifference) {
+        JsonScenario scenario = findMatchingScenario(path);
+        if (scenario == null) {
+            return false;
+        }
+
+        if (scenario.getExpectedValue() != null && !scenario.getExpectedValue().equals(attributeDifference.getNewValue())) {
+            return false;
+        }
+
+        if (scenario.getIncludeAll()) {
+            return true;
+        }
+
+        List<String> includedAttributes = scenario.getIncludedAttributes();
+        List<String> excludedAttributes = scenario.getExcludedAttributes();
+
+        if (!includedAttributes.isEmpty() && !includedAttributes.contains(path)) {
+            return false;
+        }
+
+        if (!excludedAttributes.isEmpty() && excludedAttributes.contains(path)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private JsonScenario findMatchingScenario(String path) {
+        for (Map.Entry<String, JsonScenario> entry : scenarios.entrySet()) {
+            String scenarioName = entry.getKey();
+            JsonScenario scenario = entry.getValue();
+            if (Objects.equals(scenario.getPath(), path)) {
+                return scenario;
+            }
+        }
+        return null;
+    }
+}
