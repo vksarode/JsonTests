@@ -1,0 +1,62 @@
+import io.quarkus.runtime.annotations.RegisterForReflection;
+import java.util.List;
+
+@RegisterForReflection
+public class JsonScenario {
+    private String path;
+    private Object expectedValue;
+    private boolean includeAll;
+    private List<String> includedAttributes;
+    private List<String> excludedAttributes;
+
+    public JsonScenario() {
+    }
+
+    public JsonScenario(String path, Object expectedValue, boolean includeAll, List<String> includedAttributes, List<String> excludedAttributes) {
+        this.path = path;
+        this.expectedValue = expectedValue;
+        this.includeAll = includeAll;
+        this.includedAttributes = includedAttributes;
+        this.excludedAttributes = excludedAttributes;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    public Object getExpectedValue() {
+        return expectedValue;
+    }
+
+    public void setExpectedValue(Object expectedValue) {
+        this.expectedValue = expectedValue;
+    }
+
+    public boolean getIncludeAll() {
+        return includeAll;
+    }
+
+    public void setIncludeAll(boolean includeAll) {
+        this.includeAll = includeAll;
+    }
+
+    public List<String> getIncludedAttributes() {
+        return includedAttributes;
+    }
+
+    public void setIncludedAttributes(List<String> includedAttributes) {
+        this.includedAttributes = includedAttributes;
+    }
+
+    public List<String> getExcludedAttributes() {
+        return excludedAttributes;
+    }
+
+    public void setExcludedAttributes(List<String> excludedAttributes) {
+        this.excludedAttributes = excludedAttributes;
+    }
+}
