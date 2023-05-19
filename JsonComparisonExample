@@ -1,0 +1,188 @@
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class JsonComparisonExample {
+    public static void main(String[] args) {
+        String json1 = "{\"name\": \"John Doe\", \"age\": 30, \"address\": {\"street\": \"123 Main St\", \"city\": \"New York\", \"zipcode\": \"10001\"}, \"demographics\": {\"gender\": \"Male\", \"height\": 180}}";
+        String json2 = "{\"name\": \"John Smith\", \"age\": 35, \"address\": {\"street\": \"456 Elm St\", \"city\": \"Boston\", \"zipcode\": \"02101\", \"state\": \"MA\"}, \"demographics\": {\"gender\": \"Male\", \"height\": 180}}";
+
+        String scenariosJson = "{\n" +
+                "  \"scenarios\": [\n" +
+                "    {\n" +
+                "      \"path\": \"address.city\",\n" +
+                "      \"includeAttributes\": [\"street\", \"zipcode\"],\n" +
+                "      \"excludeAttributes\": [\"state\"],\n" +
+                "      \"includeAllAttributes\": false\n" +
+                "    },\n" +
+                "    {\n" +
+                "      \"path\": \"demographics\",\n" +
+                "      \"includeAttributes\": [],\n" +
+                "      \"excludeAttributes\": [\"age\"],\n" +
+                "      \"includeAllAttributes\": true\n" +
+                "    },\n" +
+                "    {\n" +
+                "      \"path\": \"name\",\n" +
+                "      \"includeAttributes\": [],\n" +
+                "      \"excludeAttributes\": [],\n" +
+                "      \"includeAllAttributes\": true\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}";
+
+        JsonObject scenariosObject = JsonParser.parseString(scenariosJson).getAsJsonObject();
+        List<Scenario> scenarios = parseScenarios(scenariosObject);
+
+        JsonElement jsonElement1 = JsonParser.parseString(json1);
+        JsonElement jsonElement2 = JsonParser.parseString(json2);
+        JsonDifference jsonDifference = getJsonDifference(jsonElement1, jsonElement2);
+
+        List<Map<String, Object>> changedAttributes = new ArrayList<>();
+        for (Scenario scenario : scenarios) {
+            String path = scenario.getPath();
+            List<String> includeAttributes = scenario.getIncludeAttributes();
+            List<String> excludeAttributes = scenario.getExcludeAttributes();
+            boolean includeAllAttributes = scenario.isIncludeAllAttributes();
+
+            if (hasPathInDifference(jsonDifference.entriesDiffering(), path)) {
+                List<Map<String, Object>> changedMaps = getChangedMapsForPath(jsonElement2, path, jsonElement1.getAsJsonObject().get(path).toString());
+                for (Map<String, Object> map : changedMaps) {
+                    if (includeAllAttributes) {
+                        changedAttributes.add(map);
+                    } else {
+                        Map<String, Object> filteredMap = new HashMap<>();
+                        for (Map.Entry<String, Object> entry : map.entrySet()) {
+                            String attribute = entry.getKey();
+                            if (includeAttributes.contains(attribute) && !excludeAttributes.contains(attribute)) {
+                                filteredMap.put(attribute, entry.getValue());
+                            }
+                        }
+                        if (!filteredMap.isEmpty()) {
+                            changedAttributes.add(filteredMap);
+                        }
+                    }
+                }
+            }
+        }
+
+        System.out.println("Changed Attributes:");
+        System.out.println(new Gson().toJson(changedAttributes));
+    }
+
+    private static boolean hasPathInDifference(Map<String, MapDifference.ValueDifference<Object>> differingEntries, String path) {
+        String[] pathParts = path.split("\\.");
+        return differingEntries.containsKey(pathParts[0]);
+    }
+
+    private static List<Map<String, Object>> getChangedMapsForPath(JsonElement jsonElement, String path, String oldValue) {
+        List<Map<String, Object>> changedMaps = new ArrayList<>();
+        String[] pathParts = path.split("\\.");
+        JsonElement currentElement = jsonElement;
+        for (String part : pathParts) {
+            if (currentElement.isJsonObject()) {
+                JsonObject jsonObject = currentElement.getAsJsonObject();
+                if (jsonObject.has(part)) {
+                    currentElement = jsonObject.get(part);
+                } else {
+                    return changedMaps;
+                }
+            } else if (currentElement.isJsonArray()) {
+                JsonArray jsonArray = currentElement.getAsJsonArray();
+                for (JsonElement element : jsonArray) {
+                    if (element.isJsonObject()) {
+                        JsonObject jsonObject = element.getAsJsonObject();
+                        if (jsonObject.has(part)) {
+                            currentElement = jsonObject.get(part);
+                            break;
+                        }
+                    }
+                }
+            } else {
+                return changedMaps;
+            }
+        }
+
+        if (currentElement.isJsonObject()) {
+            JsonObject jsonObject = currentElement.getAsJsonObject();
+            if (!jsonObject.toString().equals(oldValue)) {
+                Map<String, Object> map = new Gson().fromJson(jsonObject, Map.class);
+                changedMaps.add(map);
+            }
+        } else if (currentElement.isJsonArray()) {
+            JsonArray jsonArray = currentElement.getAsJsonArray();
+            for (JsonElement element : jsonArray) {
+                if (element.isJsonObject()) {
+                    JsonObject jsonObject = element.getAsJsonObject();
+                    if (!jsonObject.toString().equals(oldValue)) {
+                        Map<String, Object> map = new Gson().fromJson(jsonObject, Map.class);
+                        changedMaps.add(map);
+                    }
+                }
+            }
+        }
+
+        return changedMaps;
+    }
+
+    private static List<Scenario> parseScenarios(JsonObject scenariosObject) {
+        List<Scenario> scenarios = new ArrayList<>();
+        JsonArray scenariosArray = scenariosObject.getAsJsonArray("scenarios");
+
+        for (JsonElement scenarioElement : scenariosArray) {
+            JsonObject scenarioObject = scenarioElement.getAsJsonObject();
+            String path = scenarioObject.get("path").getAsString();
+            List<String> includeAttributes = parseStringList(scenarioObject.getAsJsonArray("includeAttributes"));
+            List<String> excludeAttributes = parseStringList(scenarioObject.getAsJsonArray("excludeAttributes"));
+            boolean includeAllAttributes = scenarioObject.get("includeAllAttributes").getAsBoolean();
+
+            scenarios.add(new Scenario(path, includeAttributes, excludeAttributes, includeAllAttributes));
+        }
+
+        return scenarios;
+    }
+
+    private static List<String> parseStringList(JsonArray jsonArray) {
+        List<String> list = new ArrayList<>();
+        for (JsonElement element : jsonArray) {
+            list.add(element.getAsString());
+        }
+        return list;
+    }
+
+    private static class Scenario {
+        private String path;
+        private List<String> includeAttributes;
+        private List<String> excludeAttributes;
+        private boolean includeAllAttributes;
+
+        public Scenario(String path, List<String> includeAttributes, List<String> excludeAttributes, boolean includeAllAttributes) {
+            this.path = path;
+            this.includeAttributes = includeAttributes;
+            this.excludeAttributes = excludeAttributes;
+            this.includeAllAttributes = includeAllAttributes;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public List<String> getIncludeAttributes() {
+            return includeAttributes;
+        }
+
+        public List<String> getExcludeAttributes() {
+            return excludeAttributes;
+        }
+
+        public boolean isIncludeAllAttributes() {
+            return includeAllAttributes;
+        }
+    }
+}
