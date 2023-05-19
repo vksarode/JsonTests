@@ -1,0 +1,89 @@
+import io.quarkus.runtime.annotations.RegisterForReflection;
+import javax.inject.Inject;
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+@Path("/json-comparison")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+public class JsonComparisonResource {
+
+    @Inject
+    JsonComparisonService comparisonService;
+
+    @POST
+    @Path("/compare")
+    public JsonDifference compareJson(JsonInput input) {
+        JsonDifference jsonDifference = new JsonDifference();
+        comparisonService.compareJsonAttributes("", input.getJson1(), input.getJson2(), jsonDifference);
+        return jsonDifference;
+    }
+
+    @RegisterForReflection
+    public static class JsonInput {
+        private JsonObject json1;
+        private JsonObject json2;
+
+        public JsonObject getJson1() {
+            return json1;
+        }
+
+        public void setJson1(JsonObject json1) {
+            this.json1 = json1;
+        }
+
+        public JsonObject getJson2() {
+            return json2;
+        }
+
+        public void setJson2(JsonObject json2) {
+            this.json2 = json2;
+        }
+    }
+
+    @RegisterForReflection
+    public static class JsonDifference {
+        private Map<String, AttributeDifference> changedAttributes;
+
+        public JsonDifference() {
+        }
+
+        public Map<String, AttributeDifference> getChangedAttributes() {
+            return changedAttributes;
+        }
+
+        public void setChangedAttributes(Map<String, AttributeDifference> changedAttributes) {
+            this.changedAttributes = changedAttributes;
+        }
+    }
+
+    @RegisterForReflection
+    public static class AttributeDifference {
+        private Object oldValue;
+        private Object newValue;
+
+        public AttributeDifference(Object oldValue, Object newValue) {
+            this.oldValue = oldValue;
+            this.newValue = newValue;
+        }
+
+        public Object getOldValue() {
+            return oldValue;
+        }
+
+        public void setOldValue(Object oldValue) {
+            this.oldValue = oldValue;
+        }
+
+        public Object getNewValue() {
+            return newValue;
+        }
+
+        public void setNewValue(Object newValue) {
+            this.newValue = newValue;
+        }
+    }
+}
