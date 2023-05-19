@@ -1,0 +1,5 @@
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
+@RegisterForReflection
+public class JsonArray extends com.google.gson.JsonArray {
+}
