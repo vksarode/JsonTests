@@ -1,0 +1,70 @@
+import java.util.Date;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+
+public class EqalityCheckOperator {
+    public static void main(String[] args) {
+        // Example usage
+        int int1 = 10;
+        int int2 = 20;
+        boolean bool1 = true;
+        boolean bool2 = false;
+        String str1 = "Hello";
+        String str2 = "World";
+        Date date1 = new Date();
+        Date date2 = new Date();
+        BigDecimal decimal1 = new BigDecimal("10.5");
+        BigDecimal decimal2 = new BigDecimal("20.5");
+
+        boolean resultInt = isEqual(int1, int2, int.class);
+        boolean resultBool = isEqual(bool1, bool2, boolean.class);
+        boolean resultStr = isEqual(str1, str2, String.class);
+        boolean resultDate = isEqual(date1, date2, Date.class);
+        boolean resultDecimal = isEqual(decimal1, decimal2, BigDecimal.class);
+
+        System.out.println(resultInt); // Output: false
+        System.out.println(resultBool); // Output: false
+        System.out.println(resultStr); // Output: false
+        System.out.println(resultDate); // Output: true
+        System.out.println(resultDecimal); // Output: false
+    }
+
+    public static <T> boolean isEqual(T obj1, T obj2, Class<T> clazz) {
+        if (obj1 == null || obj2 == null) {
+            return obj1 == obj2;
+        }
+
+        if (!clazz.isInstance(obj1) || !clazz.isInstance(obj2)) {
+            throw new IllegalArgumentException("Objects do not match the specified class type");
+        }
+
+        if (clazz.equals(Boolean.class)) {
+            return ((Boolean) obj1).equals((Boolean) obj2);
+        } else if (clazz.equals(Byte.class)) {
+            return ((Byte) obj1).equals((Byte) obj2);
+        } else if (clazz.equals(Short.class)) {
+            return ((Short) obj1).equals((Short) obj2);
+        } else if (clazz.equals(Integer.class)) {
+            return ((Integer) obj1).equals((Integer) obj2);
+        } else if (clazz.equals(Long.class)) {
+            return ((Long) obj1).equals((Long) obj2);
+        } else if (clazz.equals(Float.class)) {
+            return ((Float) obj1).equals((Float) obj2);
+        } else if (clazz.equals(Double.class)) {
+            return ((Double) obj1).equals((Double) obj2);
+        } else if (clazz.equals(Character.class)) {
+            return ((Character) obj1).equals((Character) obj2);
+        } else if (clazz.equals(String.class)) {
+            return ((String) obj1).equals((String) obj2);
+        } else if (clazz.equals(Date.class)) {
+            return ((Date) obj1).equals((Date) obj2);
+        } else if (clazz.equals(BigDecimal.class)) {
+            return ((BigDecimal) obj1).equals((BigDecimal) obj2);
+        } else if (clazz.equals(BigInteger.class)) {
+            return ((BigInteger) obj1).equals((BigInteger) obj2);
+        }
+        // Add additional checks for other types as needed
+
+        throw new IllegalArgumentException("Unsupported class type");
+    }
+}
